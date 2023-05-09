@@ -5,9 +5,11 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "lint-fix": "vue-cli-service lint --fix"
   },
   "dependencies": {
+    "ant-design-vue": "^3.2.20",
     "core-js": "^3.8.3",
     "register-service-worker": "^1.7.2",
     "vue": "^3.2.13",
@@ -23,9 +25,10 @@
     "@vue/cli-plugin-router": "~5.0.0",
     "@vue/cli-plugin-vuex": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "axios": "^1.4.0",
     "eslint": "^7.32.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-vue": "^8.0.3",
     "lint-staged": "^11.1.2",
     "prettier": "^2.4.1",
