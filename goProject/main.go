@@ -4,10 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type User struct {
@@ -18,6 +21,46 @@ type User struct {
 
 func main() {
 	r := gin.Default()
+
+	cfg := zap.Config{
+		Encoding:         "json",
+		OutputPaths:      []string{"logs/debug.log", "logs/info.log", "logs/warn.log"},
+		ErrorOutputPaths: []string{"logs/error.log", "logs/dpanic.log", "logs/panic.log", "logs/fatal.log"},
+		EncoderConfig: zapcore.EncoderConfig{
+			TimeKey:        "ts",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			CallerKey:      "caller",
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.LowercaseLevelEncoder,
+			EncodeTime:     zapcore.EpochTimeEncoder,
+			EncodeDuration: zapcore.SecondsDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder},
+	}
+
+	// 创建不同级别的Core
+	debugCore := newCore(cfg, zap.DebugLevel, "logs/debug.log")
+	infoCore := newCore(cfg, zap.InfoLevel, "logs/info.log")
+	warnCore := newCore(cfg, zap.WarnLevel, "logs/warn.log")
+	errorCore := newCore(cfg, zap.ErrorLevel, "logs/error.log")
+	dpanicCore := newCore(cfg, zap.DPanicLevel, "logs/dpanic.log")
+	panicCore := newCore(cfg, zap.PanicLevel, "logs/panic.log")
+	fatalCore := newCore(cfg, zap.FatalLevel, "logs/fatal.log")
+
+	// 创建多个Core的zap对象
+	logger := zap.New(zapcore.NewTee(
+		debugCore,
+		infoCore,
+		warnCore,
+		errorCore,
+		dpanicCore,
+		panicCore,
+		fatalCore,
+	))
+
+	r.Use(loggerMiddleware(logger))
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -36,13 +79,13 @@ func main() {
 
 	db, err := sql.Open("sqlite3", "./test.db")
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Failed to open database", zap.Error(err))
 		return
 	}
 	defer db.Close()
 
 	// 创建用户表
-	createUserTable(db)
+	createUserTable(db, logger)
 
 	r.POST("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -71,6 +114,7 @@ func main() {
 		// 在数据库中查找是否存在相同用户名的用户
 		rows, err := db.Query("SELECT * FROM users WHERE username=?", user.Username)
 		if err != nil {
+			logger.Error("Failed to execute database query", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -84,6 +128,7 @@ func main() {
 		// 将新用户插入到数据库中
 		stmt, err := db.Prepare("INSERT INTO users(username, password) values(?, ?)")
 		if err != nil {
+			logger.Error("Failed to prepare database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -91,6 +136,7 @@ func main() {
 
 		res, err := stmt.Exec(user.Username, user.Password)
 		if err != nil {
+			logger.Error("Failed to execute database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -98,9 +144,13 @@ func main() {
 		// 获取新用户的ID
 		id, err := res.LastInsertId()
 		if err != nil {
+			logger.Error("Failed to get last insert id", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		// 记录注册成功的日志
+		logger.Info("新用户注册成功，这里写个日志 ", zap.String("说明", "新用户注册成功"), zap.String("username", user.Username), zap.Int64("id", id))
 
 		c.JSON(http.StatusOK, gin.H{
 			"code": 1,
@@ -121,6 +171,7 @@ func main() {
 		// 在数据库中查找是否存在相同用户名和密码的用户
 		rows, err := db.Query("SELECT * FROM users WHERE username=? AND password=?", user.Username, user.Password)
 		if err != nil {
+			logger.Error("Failed to execute database query", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -134,6 +185,7 @@ func main() {
 		// 获取用户ID
 		err = rows.Scan(&user.ID, &user.Username, &user.Password)
 		if err != nil {
+			logger.Error("Failed to scan database rows", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -148,6 +200,7 @@ func main() {
 		// 从数据库中获取所有用户
 		rows, err := db.Query("SELECT * FROM users")
 		if err != nil {
+			logger.Error("Failed to execute database query", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -157,6 +210,7 @@ func main() {
 			var user User
 			err := rows.Scan(&user.ID, &user.Username, &user.Password)
 			if err != nil {
+				logger.Error("Failed to scan database rows", zap.Error(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
@@ -175,6 +229,7 @@ func main() {
 		// 从数据库中获取指定ID的用户
 		err := db.QueryRow("SELECT * FROM users WHERE id=?", id).Scan(&user.ID, &user.Username, &user.Password)
 		if err != nil {
+			logger.Error("Failed to execute database query", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -195,6 +250,7 @@ func main() {
 		// 更新数据库中指定ID的用户信息
 		stmt, err := db.Prepare("UPDATE users SET username=?, password=? WHERE id=?")
 		if err != nil {
+			logger.Error("Failed to prepare database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -202,6 +258,7 @@ func main() {
 
 		_, err = stmt.Exec(user.Username, user.Password, id)
 		if err != nil {
+			logger.Error("Failed to execute database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -216,6 +273,7 @@ func main() {
 		// 删除数据库中指定ID的用户信息
 		stmt, err := db.Prepare("DELETE FROM users WHERE id=?")
 		if err != nil {
+			logger.Error("Failed to prepare database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -223,6 +281,7 @@ func main() {
 
 		_, err = stmt.Exec(id)
 		if err != nil {
+			logger.Error("Failed to execute database statement", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -230,20 +289,47 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "用户删除成功"})
 	})
 
-	r.Run(":8080")
+	// 启动服务
+	if err := r.Run(":8080"); err != nil {
+		logger.Error("服务启动失败", zap.Error(err))
+	}
+
+	// 程序退出前确保所有的日志都被写入到文件中
+	logger.Sync()
 }
 
-func createUserTable(db *sql.DB) {
+// 创建Core的函数
+func newCore(cfg zap.Config, level zapcore.Level, path string) zapcore.Core {
+	encoder := zapcore.NewJSONEncoder(cfg.EncoderConfig)
+	writer, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to open log file %s: %v", path, err))
+	}
+	return zapcore.NewCore(encoder, zapcore.AddSync(writer), zap.NewAtomicLevelAt(level))
+}
+
+// 中间件，日志
+func loggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		logger := logger.With(zap.String("path", c.Request.URL.Path), zap.String("method", c.Request.Method))
+		defer logger.Sync()
+		logger.Info("request received")
+		c.Next()
+	}
+}
+
+// 创建用户表
+func createUserTable(db *sql.DB, logger *zap.Logger) {
 	stmt, err := db.Prepare("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)")
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Failed to prepare database statement", zap.Error(err))
 		return
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Failed to execute database statement", zap.Error(err))
 		return
 	}
 }
