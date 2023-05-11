@@ -17,6 +17,9 @@
 				<a-menu-item key="3">
 					<router-link to="/tools">工具箱</router-link>
 				</a-menu-item>
+				<a-menu-item key="4">
+					<router-link to="/md5conversiontool">MD5转换工具</router-link>
+				</a-menu-item>
 			</a-menu>
 		</a-layout-header>
 		<a-layout>
@@ -121,7 +124,6 @@ export default defineComponent({
 	font-family: Avenir, Helvetica, Arial, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	text-align: center;
 	color: #2c3e50;
 }
 

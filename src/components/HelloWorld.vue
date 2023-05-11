@@ -1,93 +1,36 @@
 <template>
 	<div class="hello">
-		<h1>{{ msg }}</h1>
+		<h1>事儿是永远做不完的，一定要定好目标</h1>
 		<p>
-			For a guide and recipes on how to configure / customize this project,<br />
-			check out the
-			<a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
+			这个项目的意义，就是熟悉vue3，并且能有用
+			<br />
+			vue3要学的东西，直接按照文档来就行。 可以写个小工具。
 		</p>
-		<h3>Installed CLI Plugins</h3>
+
+		<h3>功能</h3>
 		<ul>
-			<li>
-				<a
-					href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel"
-					target="_blank"
-					rel="noopener"
-					>babel</a
-				>
-			</li>
-			<li>
-				<a
-					href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-pwa"
-					target="_blank"
-					rel="noopener"
-					>pwa</a
-				>
-			</li>
-			<li>
-				<a
-					href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-router"
-					target="_blank"
-					rel="noopener"
-					>router</a
-				>
-			</li>
-			<li>
-				<a
-					href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-vuex"
-					target="_blank"
-					rel="noopener"
-					>vuex</a
-				>
-			</li>
-			<li>
-				<a
-					href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint"
-					target="_blank"
-					rel="noopener"
-					>eslint</a
-				>
-			</li>
+			<li>MD5转换:熟悉UI界面和VUE3</li>
+			<li>手机转sha256：熟悉vue前端架构</li>
+			<li>淘客转唤起链接：熟悉vue前端架构</li>
+			<li>注册&登录&鉴权&角色控制&菜单控制：熟悉go语言+前后端配合</li>
+			<li>密码加密：熟悉go语言+前后端配合+安全</li>
+			<li>换微信系统：熟悉前后端配合，后端+oss</li>
+			<li>换微信系统+数据统计： 打通所有技术栈</li>
 		</ul>
-		<h3>Essential Links</h3>
+
+		<h3>技术栈</h3>
 		<ul>
-			<li>
-				<a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a>
-			</li>
-			<li>
-				<a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a>
-			</li>
-			<li>
-				<a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a>
-			</li>
-			<li>
-				<a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a>
-			</li>
-			<li>
-				<a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a>
-			</li>
+			<li>界面：antd vue +vuex</li>
+			<li>后端：gin</li>
+			<li>日志:zap库</li>
+			<li>缓存：redis</li>
+			<li>数据库：暂时sqlite</li>
 		</ul>
-		<h3>Ecosystem</h3>
+
+		<h3>下一步计划</h3>
 		<ul>
-			<li>
-				<a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a>
-			</li>
-			<li>
-				<a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a>
-			</li>
-			<li>
-				<a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener"
-					>vue-devtools</a
-				>
-			</li>
-			<li>
-				<a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a>
-			</li>
-			<li>
-				<a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener"
-					>awesome-vue</a
-				>
-			</li>
+			<li>数据透视分析-搜索：elk方案</li>
+			<li>数据透视分析-分布式计算：Hadoop</li>
 		</ul>
 	</div>
 </template>
@@ -103,6 +46,9 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
+.hello {
+	text-align: center;
+}
 h3 {
 	margin: 40px 0 0;
 }

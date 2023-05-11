@@ -64,6 +64,14 @@ const routes = [
 		// which is lazy-loaded when the route is visited.
 		component: () => import(/* webpackChunkName: "about" */ '../views/ToolsView.vue'),
 	},
+	{
+		path: '/md5conversiontool',
+		name: 'MD5转换工具',
+		// route level code-splitting
+		// this generates a separate chunk (about.[hash].js) for this route
+		// which is lazy-loaded when the route is visited.
+		component: () => import(/* webpackChunkName: "about" */ '../views/MD5ConversionToolView.vue'),
+	},
 ];
 
 const router = createRouter({

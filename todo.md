@@ -59,3 +59,50 @@
 10. 其他模块：如搜索、推荐、热门活动等。
 
 以上是一些常见的前台模块，具体根据项目需求和业务场景进行适当调整和拓展。
+
+# 面包屑优化的菜单数据结构
+
+[
+{
+id: 'dashboard',
+name: 'Dashboard',
+icon: 'dashboard',
+redirect: '/dashboard/analysis',
+children: [
+{
+id: 'analysis',
+name: 'Analysis',
+path: '/dashboard/analysis',
+component: 'dashboard/Analysis',
+},
+{
+id: 'monitor',
+name: 'Monitor',
+path: '/dashboard/monitor',
+component: 'dashboard/Monitor',
+},
+],
+},
+{
+id: 'system',
+name: 'System',
+icon: 'setting',
+redirect: '/system/user',
+children: [
+{
+id: 'user',
+name: 'User Management',
+path: '/system/user',
+component: 'system/User',
+roles: ['admin'],
+},
+{
+id: 'role',
+name: 'Role Management',
+path: '/system/role',
+component: 'system/Role',
+roles: ['admin'],
+},
+],
+},
+]
