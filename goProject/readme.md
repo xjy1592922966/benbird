@@ -54,3 +54,80 @@
 - [Golang Project Layout](https://github.com/golang-standards/project-layout)
 
 这些资源可以帮助你更好地理解和使用这个目录结构，同时也可以帮助你在实际项目中更好地进行代码组织和开发。
+
+# 多级菜单的实现
+
+为了实现多级菜单，可以设计以下表结构：
+
+1. 表名：menu
+   字段列表：
+
+- id：菜单 ID，类型为 INT，主键，自增
+- parent_id：父菜单 ID，类型为 INT，外键关联 menu 表的 id 字段
+- name：菜单名称，类型为 VARCHAR
+- icon：菜单图标，类型为 VARCHAR
+- path：菜单路径，类型为 VARCHAR
+- component：菜单组件，类型为 VARCHAR
+- redirect：菜单重定向路径，类型为 VARCHAR
+- meta_title：菜单元数据标题，类型为 VARCHAR
+- meta_roles：菜单元数据角色，类型为 VARCHAR
+- version：菜单版本，类型为 INT
+
+2. 表名：role
+   字段列表：
+
+- id：角色 ID，类型为 INT，主键，自增
+- name：角色名称，类型为 VARCHAR
+
+3. 表名：menu_role
+   字段列表：
+
+- menu_id：菜单 ID，类型为 INT，外键关联 menu 表的 id 字段
+- role_id：角色 ID，类型为 INT，外键关联 role 表的 id 字段
+
+通过以上表结构，可以实现多级菜单的存储，并支持角色控制和版本控制。
+
+针对 go 语言 gin 框架的增删改查接口，可以设计如下：
+
+1. GET /menu
+   查询所有菜单。
+
+2. GET /menu/:id
+   查询指定菜单。
+
+3. POST /menu
+   创建菜单。
+
+4. PUT /menu/:id
+   更新菜单。
+
+5. DELETE /menu/:id
+   删除菜单。
+
+6. GET /role
+   查询所有角色。
+
+7. GET /role/:id
+   查询指定角色。
+
+8. POST /role
+   创建角色。
+
+9. PUT /role/:id
+   更新角色。
+
+10. DELETE /role/:id
+    删除角色。
+
+11. GET /menu_role/:menu_id
+    查询指定菜单的所有角色。
+
+12. POST /menu_role
+    创建菜单角色关联。
+
+13. DELETE /menu_role/:menu_id/:role_id
+    删除菜单角色关联。
+
+以上接口可以满足多级菜单的增删改查需求，并支持角色控制和版本控制。
+
+# 请按照以上方案，给出 go gin 框架代码。

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -13,15 +14,44 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// 用户的数据结构
 type User struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// 菜单的数据结构
+type Menu struct {
+	ID        int    `json:"id"`
+	ParentID  int    `json:"parent_id"`
+	Name      string `json:"name"`
+	Icon      string `json:"icon"`
+	Path      string `json:"path"`
+	Component string `json:"component"`
+	Redirect  string `json:"redirect"`
+	MetaTitle string `json:"meta_title"`
+	MetaRoles string `json:"meta_roles"`
+	Version   int    `json:"version"`
+}
+
+// 角色的表
+type Role struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// 菜单与角色关系表
+type MenuRole struct {
+	MenuID int `json:"menu_id"`
+	RoleID int `json:"role_id"`
+}
+
 func main() {
+	//gin 框架初始化
 	r := gin.Default()
 
+	//这是 zap库 配置
 	cfg := zap.Config{
 		Encoding:         "json",
 		OutputPaths:      []string{"logs/debug.log", "logs/info.log", "logs/warn.log"},
@@ -40,7 +70,7 @@ func main() {
 			EncodeCaller:   zapcore.ShortCallerEncoder},
 	}
 
-	// 创建不同级别的Core
+	//  zap库 创建不同级别的Core
 	debugCore := newCore(cfg, zap.DebugLevel, "logs/debug.log")
 	infoCore := newCore(cfg, zap.InfoLevel, "logs/info.log")
 	warnCore := newCore(cfg, zap.WarnLevel, "logs/warn.log")
@@ -60,8 +90,10 @@ func main() {
 		fatalCore,
 	))
 
+	//使用中间件
 	r.Use(loggerMiddleware(logger))
 
+	// 配置https
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -77,6 +109,7 @@ func main() {
 		c.Next()
 	})
 
+	//初始化数据库
 	db, err := sql.Open("sqlite3", "./test.db")
 	if err != nil {
 		logger.Error("Failed to open database", zap.Error(err))
@@ -289,8 +322,361 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "用户删除成功"})
 	})
 
+	// 查询所有菜单。
+	r.GET("/menu", func(c *gin.Context) {
+		rows, err := db.Query("SELECT * FROM menu")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var menus []Menu
+		for rows.Next() {
+			var menu Menu
+			err := rows.Scan(&menu.ID, &menu.ParentID, &menu.Name, &menu.Icon, &menu.Path, &menu.Component, &menu.Redirect, &menu.MetaTitle, &menu.MetaRoles, &menu.Version)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			menus = append(menus, menu)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": menus})
+	})
+
+	//   查询指定菜单。
+	r.GET("/menu/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		row := db.QueryRow("SELECT * FROM menu WHERE id = ?", id)
+
+		var menu Menu
+		err = row.Scan(&menu.ID, &menu.ParentID, &menu.Name, &menu.Icon, &menu.Path, &menu.Component, &menu.Redirect, &menu.MetaTitle, &menu.MetaRoles, &menu.Version)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": menu})
+	})
+
+	// 创建菜单。
+	r.POST("/menu", func(c *gin.Context) {
+		var menu Menu
+		err := c.BindJSON(&menu)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		result, err := db.Exec("INSERT INTO menu (parent_id, name, icon, path, component, redirect, meta_title, meta_roles, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", menu.ParentID, menu.Name, menu.Icon, menu.Path, menu.Component, menu.Redirect, menu.MetaTitle, menu.MetaRoles, menu.Version)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		menu.ID = int(id)
+
+		c.JSON(http.StatusCreated, gin.H{"data": menu})
+	})
+
+	//   更新菜单。
+	r.PUT("/menu/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		var menu Menu
+		err = c.BindJSON(&menu)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		result, err := db.Exec("UPDATE menu SET parent_id = ?, name = ?, icon = ?, path = ?, component = ?, redirect = ?, meta_title = ?, meta_roles = ?, version = ? WHERE id = ?", menu.ParentID, menu.Name, menu.Icon, menu.Path, menu.Component, menu.Redirect, menu.MetaTitle, menu.MetaRoles, menu.Version, id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+
+		menu.ID = id
+
+		c.JSON(http.StatusOK, gin.H{"data": menu})
+	})
+
+	//   删除菜单。
+	r.DELETE("/menu/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		result, err := db.Exec("DELETE FROM menu WHERE id = ?", id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu deleted successfully"})
+	})
+
+	// 查询所有角色。
+	r.GET("/role", func(c *gin.Context) {
+		rows, err := db.Query("SELECT * FROM role")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var roles []Role
+		for rows.Next() {
+			var role Role
+			err := rows.Scan(&role.ID, &role.Name)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			roles = append(roles, role)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": roles})
+	})
+
+	//   查询指定角色。
+	r.GET("/role/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		row := db.QueryRow("SELECT * FROM role WHERE id = ?", id)
+
+		var role Role
+		err = row.Scan(&role.ID, &role.Name)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": role})
+	})
+
+	//  创建角色。
+	r.POST("/role", func(c *gin.Context) {
+		var role Role
+		err := c.BindJSON(&role)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		result, err := db.Exec("INSERT INTO role (name) VALUES (?)", role.Name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		role.ID = int(id)
+
+		c.JSON(http.StatusCreated, gin.H{"data": role})
+	})
+
+	//  更新角色。
+	r.PUT("/role/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		var role Role
+		err = c.BindJSON(&role)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		result, err := db.Exec("UPDATE role SET name = ? WHERE id = ?", role.Name, id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
+			return
+		}
+
+		role.ID = id
+
+		c.JSON(http.StatusOK, gin.H{"data": role})
+	})
+
+	// 删除角色。
+	r.DELETE("/role/:id", func(c *gin.Context) {
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		result, err := db.Exec("DELETE FROM role WHERE id = ?", id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Role deleted successfully"})
+	})
+
+	//查询指定菜单的所有角色。
+	r.GET("/menu-role", func(c *gin.Context) {
+		rows, err := db.Query("SELECT * FROM menu_role")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var menuRoles []MenuRole
+		for rows.Next() {
+			var menuRole MenuRole
+			err := rows.Scan(&menuRole.MenuID, &menuRole.RoleID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			menuRoles = append(menuRoles, menuRole)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": menuRoles})
+	})
+
+	//  创建菜单角色关联。
+	r.POST("/menu-role", func(c *gin.Context) {
+		var menuRole MenuRole
+		err := c.BindJSON(&menuRole)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		_, err = db.Exec("INSERT INTO menu_role (menu_id, role_id) VALUES (?, ?)", menuRole.MenuID, menuRole.RoleID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"data": menuRole})
+	})
+
+	//  删除菜单角色关联。
+	r.DELETE("/menu-role/:menu_id/:role_id", func(c *gin.Context) {
+		menuIDStr := c.Param("menu_id")
+		menuID, err := strconv.Atoi(menuIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Menu ID"})
+			return
+		}
+
+		roleIDStr := c.Param("role_id")
+		roleID, err := strconv.Atoi(roleIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Role ID"})
+			return
+		}
+
+		result, err := db.Exec("DELETE FROM menu_role WHERE menu_id = ? AND role_id = ?", menuID, roleID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu-Role relationship not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu-Role relationship deleted successfully"})
+	})
 	// 启动服务
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run(":8899"); err != nil {
 		logger.Error("服务启动失败", zap.Error(err))
 	}
 

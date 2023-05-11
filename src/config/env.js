@@ -6,7 +6,7 @@ let axiosUrl, ajaxUrl, imgUrl;
 
 const PRODUCTION_APIURL = ''; //生产环境后台API
 const DEVELOP_APIURL = ''; //测试环境后台API
-const LOCALHOST_APIURL = 'http://localhost:8080'; //本地环境后台API
+const LOCALHOST_APIURL = 'http://localhost:8899'; //本地环境后台API
 
 const PRODUCTION_WENURL = ''; //生产环境前台
 const DEVELOP_WENURL = ''; //测试环境前台
