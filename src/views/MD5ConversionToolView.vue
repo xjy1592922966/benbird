@@ -5,31 +5,48 @@
 		name="nest-messages"
 		:validate-messages="validateMessages"
 	>
-		<a-form-item :name="['md5ConversionTools', 'originalText']" label="原文">
-			<a-textarea
-				:rows="4"
-				placeholder="输入需要加密的内容，一行一个例如：
+		<a-row :gutter="16">
+			<a-col class="gutter-row" :span="11">
+				<div class="gutter-box">
+					<a-form-item :name="['md5ConversionTools', 'originalText']" label="原文">
+						<a-textarea
+							:rows="4"
+							placeholder="输入需要加密的内容，一行一个例如：
 13632448075
 asdasdasd"
-				@change="changeValue"
-				v-model:value="formState.md5ConversionTools.originalText"
-			/>
-		</a-form-item>
-
-		<a-divider></a-divider>
-
-		<a-form-item :name="['md5ConversionTools', 'ciphertext']" label="密文">
-			<a-textarea
-				:rows="4"
-				placeholder=""
-				v-model:value="formState.md5ConversionTools.ciphertext"
-			/>
-		</a-form-item>
+							@change="funChangeValue"
+							v-model:value="formState.md5ConversionTools.originalText"
+						/>
+					</a-form-item>
+				</div>
+			</a-col>
+			<a-col class="gutter-row" :span="2">
+				<div class="gutter-box">
+					<a-form-item>
+						<a-button type="primary" shape="round" :size="large" @click="funEncryptionConversion">
+							转换
+						</a-button>
+					</a-form-item>
+				</div>
+			</a-col>
+			<a-col class="gutter-row" :span="11">
+				<div class="gutter-box">
+					<a-form-item :name="['md5ConversionTools', 'ciphertext']" label="密文">
+						<a-textarea
+							:rows="4"
+							placeholder=""
+							v-model:value="formState.md5ConversionTools.ciphertext"
+						/>
+					</a-form-item>
+				</div>
+			</a-col>
+		</a-row>
 	</a-form>
 </template>
 
 <script>
-import { defineComponent, reactive } from 'vue';
+import { defineComponent, ref } from 'vue';
+import CryptoJS from 'crypto-js';
 export default defineComponent({
 	setup() {
 		const layout = {
@@ -50,20 +67,38 @@ export default defineComponent({
 				range: '${label} must be between ${min} and ${max}',
 			},
 		};
-		const formState = reactive({
+		const formState = ref({
 			md5ConversionTools: {
 				originalText: '',
 				ciphertext: '',
 			},
 		});
-		const changeValue = (values) => {
-			console.log('changeValue:', values);
-			console.log('formState.originalText:', formState.originalText);
+
+		const funEncryptionConversion = () => {
+			console.log('转换按钮');
+
+			console.log(
+				'formState.originalText:',
+				formState.value.md5ConversionTools.originalText.split('\n'),
+			);
+
+			let originalTextArr = formState.value.md5ConversionTools.originalText.split('\n');
+
+			let ciphertextArr = originalTextArr.map((item) => {
+				return CryptoJS.MD5(item).toString();
+			});
+
+			formState.value.md5ConversionTools.ciphertext = ciphertextArr.join('\n');
+		};
+
+		const funChangeValue = () => {
+			// console.log('changeValue:', values);
 		};
 		return {
 			formState,
 			layout,
-			changeValue,
+			funChangeValue,
+			funEncryptionConversion,
 			validateMessages,
 		};
 	},
